@@ -7,6 +7,7 @@ import br.com.mensageria.api.infra.entity.PaymentRequest;
 import br.com.mensageria.api.infra.repository.PaymentRequestRepository;
 import br.com.mensageria.commons.enums.CurrencyEnum;
 import br.com.mensageria.commons.enums.PaymentStatus;
+import com.google.gson.Gson;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -29,6 +30,8 @@ public class PaymentService {
     @Autowired
     private PaymentRequestRepository paymentRequestRepository;
 
+    private final Gson gson = new Gson();
+
     public PaymentResponseDTO pagar(PaymentRequestDTO pagamentoRequest){
         validar(pagamentoRequest);
 
@@ -45,13 +48,15 @@ public class PaymentService {
         pagamento.setStatus(PaymentStatus.PENDENTE);
         paymentRequestRepository.save(pagamento);
 
-        rabbitTemplate.convertAndSend(
-                EXCHANGE_NAME,
-                ROUTING_KEY,
-                new PaymentValidatedDTO(
-                    pagamento.getId(),
-                    pagamento.getCorrelationId()
-        ));
+        PaymentValidatedDTO dto = new PaymentValidatedDTO(
+                pagamento.getId(),
+                pagamento.getCorrelationId()
+        );
+
+        String json = gson.toJson(dto);
+
+        rabbitTemplate.convertAndSend(EXCHANGE_NAME, ROUTING_KEY, json);
+
         return new PaymentResponseDTO(
                 pagamento.getId(),
                 pagamento.getCorrelationId(),
