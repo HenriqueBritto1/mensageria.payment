@@ -1,8 +1,10 @@
 package br.com.mensageria.api.application;
 
+import br.com.mensageria.api.application.dto.PaymentReceiveDTO;
 import br.com.mensageria.api.application.dto.PaymentValidatedDTO;
 import br.com.mensageria.api.application.dto.PaymentRequestDTO;
 import br.com.mensageria.api.application.dto.PaymentResponseDTO;
+import br.com.mensageria.api.infra.PaymentPublisher;
 import br.com.mensageria.api.infra.entity.PaymentRequest;
 import br.com.mensageria.api.infra.repository.PaymentRequestRepository;
 import br.com.mensageria.commons.enums.CurrencyEnum;
@@ -21,14 +23,14 @@ import java.util.UUID;
 @Service
 public class PaymentService {
 
-    private final static String ROUTING_KEY= "payment.validated";
-    private static final String EXCHANGE_NAME = "mensageria-payment-exchange";
-
     @Autowired
     private RabbitTemplate rabbitTemplate;
 
     @Autowired
     private PaymentRequestRepository paymentRequestRepository;
+
+    @Autowired
+    private PaymentPublisher publisher;
 
     private final Gson gson = new Gson();
 
@@ -53,9 +55,7 @@ public class PaymentService {
                 pagamento.getCorrelationId()
         );
 
-        String json = gson.toJson(dto);
-
-        rabbitTemplate.convertAndSend(EXCHANGE_NAME, ROUTING_KEY, json);
+        publisher.publish(dto);
 
         return new PaymentResponseDTO(
                 pagamento.getId(),
@@ -81,4 +81,8 @@ public class PaymentService {
         }
     }
 
+
+    public PaymentReceiveDTO verificarPagamento(String transactionId){
+        return publisher.publishAndReceive(transactionId);
+    }
 }

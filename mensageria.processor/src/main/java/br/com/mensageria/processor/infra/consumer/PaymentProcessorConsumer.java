@@ -1,5 +1,6 @@
 package br.com.mensageria.processor.infra.consumer;
 
+import br.com.mensageria.processor.application.dto.PaymentReceiveDTO;
 import br.com.mensageria.processor.application.dto.PaymentValidatedDTO;
 import br.com.mensageria.processor.application.ProcessorService;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -14,5 +15,10 @@ public class PaymentProcessorConsumer {
     @RabbitListener(queues = "payment.validated")
     public void process(String dto){
         service.process(dto);
+    }
+
+    @RabbitListener(queues = "payment.notification")
+    public Object verify(String dto){
+        return service.verify(dto);
     }
 }

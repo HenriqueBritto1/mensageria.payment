@@ -1,5 +1,6 @@
 package br.com.mensageria.processor.application;
 
+import br.com.mensageria.processor.application.dto.PaymentReceiveDTO;
 import br.com.mensageria.processor.application.dto.PaymentValidatedDTO;
 
 import br.com.mensageria.commons.exceptions.InsuficientBalanceException;
@@ -9,15 +10,20 @@ import br.com.mensageria.commons.exceptions.PagamentoNaoEncontrado;
 import br.com.mensageria.processor.infra.entity.PaymentRequest;
 import br.com.mensageria.processor.infra.repository.PaymentRequestRepository;
 import com.google.gson.Gson;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import br.com.mensageria.processor.infra.repository.PaymentRepository;
+import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.net.http.HttpClient;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 @Service
 public class ProcessorService {
@@ -27,6 +33,8 @@ public class ProcessorService {
 
     @Autowired
     private PaymentRepository payRepo;
+
+    private ObjectMapper mapper = new ObjectMapper();
 
     private HttpClient httpClient(){
         return HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
@@ -67,4 +75,35 @@ public class ProcessorService {
         payRepo.save(entity);
         paymentRequestRepository.save(request);
     }
+
+    public Object verify(String msg){
+        String transactionId = gson.fromJson(msg, String.class);
+
+        Payment pay = payRepo.findByOrderIdContainingIgnoreCase(transactionId)
+                .orElse(null);
+
+        if(pay==null){
+            return null;
+        }
+        PaymentReceiveDTO dto = montarDTO(pay);
+
+        var json = mapper.writeValueAsString(dto);
+        System.out.println(json);
+        return json;
+    }
+
+    private PaymentReceiveDTO montarDTO(Payment entity){
+        return new PaymentReceiveDTO(
+                entity.getId(),
+                entity.getCorrelationId(),
+                entity.getAmount(),
+                entity.getCurrency(),
+                entity.getExternalReference(),
+                entity.getStatus(),
+                entity.getOrderId(),
+                entity.getCallbackUrl(),
+                entity.getCreatedAt()
+        );
+    }
+
 }
