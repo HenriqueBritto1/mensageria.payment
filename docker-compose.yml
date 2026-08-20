@@ -1,0 +1,87 @@
+name: mensageria-payment
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    env_file:
+      - .env
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgresql:
+    image: bitnami/postgresql:latest
+    container_name: postgresql-payment
+    env_file:
+      - .env
+    environment:
+      - POSTGRESQL_DATABASE=payment
+      - POSTGRESQL_PASSWORD=${DB_PASSWORD}
+      - POSTGRESQL_USERNAME=${DB_USERNAME}
+    ports:
+      - '5000:5432'
+    volumes:
+      - pg_data:/bitnami/postgresql/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d payment"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mensageria-api:
+    build:
+      context: .
+      dockerfile: mensageria.api/Dockerfile
+    container_name: mensageria-api
+    env_file:
+      - .env
+    environment:
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=${RABBITMQ_USER}
+      - SPRING_RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/payment
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "8080:8080"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgresql:
+        condition: service_healthy
+
+  mensageria-processor:
+    build:
+      context: .
+      dockerfile: mensageria.processor/Dockerfile
+    container_name: mensageria-processor
+    env_file:
+      - .env
+    environment:
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=${RABBITMQ_USER}
+      - SPRING_RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/payment
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgresql:
+        condition: service_healthy
+
+volumes:
+  pg_data:
+  rabbitmq_data:

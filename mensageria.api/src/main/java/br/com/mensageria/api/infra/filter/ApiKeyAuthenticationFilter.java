@@ -28,7 +28,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             ApiClients apiClients = apiClientsRepository.findByApiKey(apiKey);
             if (apiClients != null) {
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        apiClients,
+                        apiClients.getNome(),
                         null,
                         List.of(new SimpleGrantedAuthority("ROLE_MERCHANT"))
                 );

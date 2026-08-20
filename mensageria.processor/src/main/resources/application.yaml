@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: mensageria.processor
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: ${RABBITMQ_USER}
+    password: ${RABBITMQ_PASSWORD}
+    listener:
+      direct:
+        retry:
+          max-retries: 3
+
+  datasource:
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    url: jdbc:postgresql://localhost:5000/payment
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+server:
+  port: 8090

@@ -1,7 +1,7 @@
 package br.com.mensageria.api.infra.exception;
 
 import br.com.mensageria.commons.exceptions.InsuficientBalanceException;
-import br.com.mensageria.commons.exceptions.PagamentoNaoEncontrado;
+import br.com.mensageria.commons.exceptions.PaymentError;
 import br.com.mensageria.commons.exceptions.ResponseError;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,8 +16,15 @@ public class GlobalExceptionHandler {
                 new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage())
         );
     }
-    @ExceptionHandler(IllegalAccessException.class)
-    public ResponseEntity<ResponseError> handleException(IllegalAccessException e){
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ResponseError> handleException(IllegalArgumentException e){
+        return ResponseEntity.badRequest().body(
+                new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage())
+        );
+    }
+
+    @ExceptionHandler(PaymentError.class)
+    public ResponseEntity<ResponseError> handleException(PaymentError e){
         return ResponseEntity.badRequest().body(
                 new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage())
         );
