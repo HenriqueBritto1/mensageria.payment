@@ -3,15 +3,12 @@ package br.com.mensageria.processor.application;
 import br.com.mensageria.processor.application.dto.PaymentReceiveDTO;
 import br.com.mensageria.processor.application.dto.PaymentValidatedDTO;
 
-import br.com.mensageria.commons.exceptions.InsuficientBalanceException;
 import br.com.mensageria.processor.infra.entity.Payment;
 import br.com.mensageria.commons.enums.PaymentStatus;
-import br.com.mensageria.commons.exceptions.PagamentoNaoEncontrado;
+import br.com.mensageria.commons.exceptions.PaymentNotFound;
 import br.com.mensageria.processor.infra.entity.PaymentRequest;
 import br.com.mensageria.processor.infra.repository.PaymentRequestRepository;
 import com.google.gson.Gson;
-import org.springframework.amqp.core.Message;
-import org.springframework.amqp.core.MessageProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,8 +17,6 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.net.http.HttpClient;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -47,7 +42,7 @@ public class ProcessorService {
         PaymentValidatedDTO dto = gson.fromJson(msg, PaymentValidatedDTO.class);
 
         PaymentRequest request = paymentRequestRepository.findById(dto.pagamentoId())
-                .orElseThrow(() -> new PagamentoNaoEncontrado("Ocorreu um erro: Pagamento nao encontrado"));
+                .orElseThrow(() -> new PaymentNotFound("Ocorreu um erro: Pagamento nao encontrado"));
 
         Payment entity = new Payment();
         entity.setOrderId(dto.pagamentoId().toString());
@@ -66,8 +61,6 @@ public class ProcessorService {
         if(request.getAmount().compareTo(new BigDecimal(10000))>=0){
             request.setStatus(PaymentStatus.RECUSADO);
             request.setRejectedReason("Saldo insuficiente");
-            paymentRequestRepository.save(request);
-            return;
         }else {
             request.setStatus(PaymentStatus.APROVADO);
             entity.setStatus(PaymentStatus.APROVADO);
@@ -79,7 +72,7 @@ public class ProcessorService {
     public Object verify(String msg){
         String transactionId = gson.fromJson(msg, String.class);
 
-        Payment pay = payRepo.findByOrderIdContainingIgnoreCase(transactionId)
+        PaymentRequest pay = paymentRequestRepository.findById(UUID.fromString(transactionId))
                 .orElse(null);
 
         if(pay==null){
@@ -92,7 +85,7 @@ public class ProcessorService {
         return json;
     }
 
-    private PaymentReceiveDTO montarDTO(Payment entity){
+    private PaymentReceiveDTO montarDTO(PaymentRequest entity){
         return new PaymentReceiveDTO(
                 entity.getId(),
                 entity.getCorrelationId(),
@@ -100,7 +93,7 @@ public class ProcessorService {
                 entity.getCurrency(),
                 entity.getExternalReference(),
                 entity.getStatus(),
-                entity.getOrderId(),
+                entity.getId().toString(),
                 entity.getCallbackUrl(),
                 entity.getCreatedAt()
         );

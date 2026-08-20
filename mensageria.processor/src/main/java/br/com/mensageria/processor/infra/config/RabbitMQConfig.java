@@ -1,4 +1,4 @@
-package br.com.mensageria.processor.config;
+package br.com.mensageria.processor.infra.config;
 
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.config.RetryInterceptorBuilder;
