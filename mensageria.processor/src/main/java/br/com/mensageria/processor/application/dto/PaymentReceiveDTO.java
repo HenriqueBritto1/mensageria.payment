@@ -15,6 +15,7 @@ public record PaymentReceiveDTO(
         String externalReference,
         PaymentStatus status,
         String orderId,
+        String clientToken,
         String callbackUrl,
         OffsetDateTime createdAt
 ) {

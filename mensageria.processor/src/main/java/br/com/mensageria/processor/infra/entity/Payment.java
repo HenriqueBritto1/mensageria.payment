@@ -55,4 +55,7 @@ public class Payment {
 
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
+
+    @Column(name = "client_token")
+    private String clientToken;
 }

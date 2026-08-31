@@ -3,6 +3,7 @@ package br.com.mensageria.api.web;
 import br.com.mensageria.api.application.PaymentService;
 import br.com.mensageria.api.application.dto.PaymentRequestDTO;
 import br.com.mensageria.api.application.dto.PaymentResponseDTO;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +17,7 @@ public class PaymentController {
     private PaymentService paymentService;
 
     @PostMapping("/pagamento")
-    public ResponseEntity<PaymentResponseDTO> pagamento(@RequestBody PaymentRequestDTO pagamento){
+    public ResponseEntity<PaymentResponseDTO> pagamento(@RequestBody @Valid PaymentRequestDTO pagamento){
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(paymentService.pagar(pagamento));
     }
 

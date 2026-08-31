@@ -53,6 +53,12 @@ public class PaymentRequest {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
+    @Column
+    private Integer count;
+
+    @Column(name = "order_id")
+    private String orderId;
+
     public UUID getId() {
         return id;
     }
@@ -139,6 +145,22 @@ public class PaymentRequest {
 
     public void setUpdatedAt(OffsetDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Integer getCount() {
+        return count;
+    }
+
+    public void setCount(Integer count) {
+        this.count = count;
+    }
+
+    public String getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(String orderId) {
+        this.orderId = orderId;
     }
 }
 

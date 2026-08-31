@@ -22,7 +22,7 @@ public class PaymentPublisher {
         this.rabbitTemplate = rabbitTemplate;
     }
 
-    public void publish(PaymentValidatedDTO json){
+    public void publish(Object json){
         rabbitTemplate.convertAndSend(EXCHANGE_NAME, ROUTING_KEY, json);
     }
 
@@ -32,6 +32,15 @@ public class PaymentPublisher {
             return mapper.readValue((String) response, PaymentReceiveDTO.class);
         }catch (Exception e){
             throw new PaymentError("Erro ao buscar Pagamento");
+        }
+    }
+
+    public PaymentReceiveDTO publishAndReceivePayment(String json){
+        try {
+            Object response = rabbitTemplate.convertSendAndReceive(EXCHANGE_NAME, ROUTING_KEY, json);
+            return mapper.readValue((String) response, PaymentReceiveDTO.class);
+        }catch (Exception e){
+            throw new PaymentError("Erro ao enviar Pagamento");
         }
     }
 }

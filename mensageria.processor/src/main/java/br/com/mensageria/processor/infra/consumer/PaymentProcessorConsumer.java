@@ -13,8 +13,8 @@ public class PaymentProcessorConsumer {
     private ProcessorService service;
 
     @RabbitListener(queues = "payment.validated")
-    public void process(String dto){
-        service.process(dto);
+    public Object process(String dto){
+        return service.process(dto);
     }
 
     @RabbitListener(queues = "payment.notification")
