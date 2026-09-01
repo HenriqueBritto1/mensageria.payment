@@ -59,14 +59,14 @@ public class PaymentService {
         pagamento.setMerchantId(SecurityContextHolder.getContext().getAuthentication().getName());
         pagamento.setCreatedAt(OffsetDateTime.now());
         pagamento.setCorrelationId(UUID.randomUUID().toString());
-        pagamento.setStatus(PaymentStatus.PENDENTE);
+        pagamento.setStatus(PaymentStatus.PENDING);
         paymentRequestRepository.save(pagamento);
 
         PaymentDTO paymentDto = new PaymentDTO();
         paymentDto.setAmount(pagamentoRequest.total_amount().toString());
         paymentDto.setPayment_method(pagamentoRequest.payment_method());
         if(Objects.equals(pagamentoRequest.payment_method().getType(), TypePayment.bank_transfer)){
-            paymentDto.setExpiration_time("P3D");
+            paymentDto.setExpiration_time("P1D");
         }
 
         List<PaymentDTO> list = new ArrayList<>();

@@ -1,6 +1,7 @@
 package br.com.mensageria.processor.application.dto;
 
 import br.com.mensageria.commons.dto.Transactions;
+import br.com.mensageria.commons.dto.TransactionsResponse;
 
 public record MercadoPagoResponseDTO(
         String id,
@@ -16,6 +17,7 @@ public record MercadoPagoResponseDTO(
         String status_detail,
         String capture_mode,
         String client_token,
-        Transactions transactions
+        String tiket_url,
+        TransactionsResponse transactions
 ) {
 }

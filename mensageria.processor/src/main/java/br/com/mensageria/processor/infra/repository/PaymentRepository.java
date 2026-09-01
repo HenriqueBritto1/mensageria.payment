@@ -12,4 +12,5 @@ import java.util.UUID;
 public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     Optional<Payment> findById(UUID uuid);
     Optional<Payment> findByOrderIdContainingIgnoreCase(String orderId);
+    Optional<Payment> findByCorrelationIdContainingIgnoreCase(String correlationId);
 }

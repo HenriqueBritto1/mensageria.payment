@@ -17,6 +17,7 @@ public record PaymentReceiveDTO(
         String orderId,
         String clientToken,
         String callbackUrl,
+        String ticketUrl,
         OffsetDateTime createdAt
 ) {
 }

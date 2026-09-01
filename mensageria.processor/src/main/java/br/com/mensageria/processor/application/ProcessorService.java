@@ -81,14 +81,14 @@ public class ProcessorService {
             System.out.println("STATUS: " + response.statusCode());
             System.out.println("BODY: " + response.body());
             if (response.statusCode() >= 400) {
-                request.setStatus(PaymentStatus.RECUSADO);
+                request.setStatus(PaymentStatus.FAILED);
                 request.setRejectedReason(response.body());
                 paymentRequestRepository.save(request);
                 throw new RuntimeException("Erro ao integrar com a API");
             }else {
                 MercadoPagoResponseDTO responseMercado = gson.fromJson(response.body(), MercadoPagoResponseDTO.class);
-                request.setStatus(PaymentStatus.PROCESSANDO);
-                entity.setStatus(PaymentStatus.PROCESSANDO);
+                request.setStatus(PaymentStatus.PROCESSING);
+                entity.setStatus(PaymentStatus.PROCESSING);
                 entity.setOrderId(responseMercado.id());
                 entity.setExternalReference(request.getExternalReference());
                 entity.setAmount(request.getAmount());
@@ -108,6 +108,7 @@ public class ProcessorService {
                         responseMercado.id(),
                         responseMercado.client_token(),
                         request.getCallbackUrl(),
+                        responseMercado.tiket_url(),
                         request.getCreatedAt()
                 );
                 payRepo.save(entity);
@@ -123,33 +124,64 @@ public class ProcessorService {
     }
 
     public Object verify(String msg){
-        String transactionId = gson.fromJson(msg, String.class);
+        try {
+            String transactionId = gson.fromJson(msg, String.class);
 
-        PaymentRequest pay = paymentRequestRepository.findById(UUID.fromString(transactionId))
-                .orElse(null);
-        Payment entity = payRepo.findByOrderIdContainingIgnoreCase(pay.getOrderId()).orElse(null);
+            PaymentRequest pay = paymentRequestRepository.findById(UUID.fromString(transactionId))
+                    .orElseThrow(()->new PaymentNotFound("Pagamento não encontrado na base de dados"));
+            Payment entity = payRepo.findByCorrelationIdContainingIgnoreCase(pay.getCorrelationId()).orElse(null);
 
-        if(pay==null||entity==null){
-            return null;
+            if(entity==null){
+                return null;
+            }
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url+ "v1/orders/"+entity.getOrderId()))
+                    .GET()
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer "+ TOKEN)
+                    .build();
+
+            HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString());
+            System.out.println(response.body());
+            if(response.statusCode() >= 400) {
+                throw new RuntimeException("Erro ao integrar com a API");
+            }
+            MercadoPagoResponseDTO responseMercado = gson.fromJson(response.body(), MercadoPagoResponseDTO.class);
+            var responsejson = gson.toJson(responseMercado);
+            System.out.println(responsejson);
+            pay.setStatus(PaymentStatus.valueOf(responseMercado.status().toUpperCase()));
+            pay.setUpdatedAt(OffsetDateTime.now());
+            entity.setStatus(PaymentStatus.valueOf(responseMercado.status().toUpperCase()));
+            entity.setUpdatedAt(OffsetDateTime.now());
+
+            paymentRequestRepository.save(pay);
+            payRepo.save(entity);
+            PaymentReceiveDTO dto = montarDTO(pay, entity, responseMercado);
+
+            var json = mapper.writeValueAsString(dto);
+            System.out.println(json);
+            return json;
+        }catch(IOException e){
+            throw new RuntimeException(e.getMessage());
+        }catch(InterruptedException ex){
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(ex.getMessage());
         }
-        PaymentReceiveDTO dto = montarDTO(pay, entity);
-
-        var json = mapper.writeValueAsString(dto);
-        System.out.println(json);
-        return json;
     }
 
-    private PaymentReceiveDTO montarDTO(PaymentRequest entity, Payment payment){
+    private PaymentReceiveDTO montarDTO(PaymentRequest entity, Payment payment, MercadoPagoResponseDTO mercadoPago){
         return new PaymentReceiveDTO(
                 entity.getId(),
                 entity.getCorrelationId(),
                 entity.getAmount(),
                 entity.getCurrency(),
                 entity.getExternalReference(),
-                entity.getStatus(),
+                PaymentStatus.valueOf(mercadoPago.status().toUpperCase()),
                 payment.getOrderId(),
                 payment.getClientToken(),
                 entity.getCallbackUrl(),
+                mercadoPago.transactions().payments().getFirst().payment_method().ticket_url(),
                 entity.getCreatedAt()
         );
     }
