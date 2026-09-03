@@ -200,4 +200,16 @@ public class ProcessorService {
         return request;
     }
 
+    private void tratar(int statusCode) {
+        switch (statusCode) {
+            case 400 -> throw new IllegalArgumentException("Parâmetro inválido");
+            case 401 -> throw new InvalidTokenException("Token inválido");
+            case 403 -> throw new PermissionNotAllowed("Acesso negado ao recurso");
+            case 404 -> throw new PaymentNotFound("Order não encontrada");
+            case 409 -> throw new ApiRuleException("Ação bloqueada por regra");
+            case 423 -> throw new ResourceLocked("Chave de idempotência bloqueada");
+            case 429 -> throw new RequestLimitExceeded("Limite de requisições excedido");
+            case 500 -> throw new RuntimeException("Chamada a API falhou");
+        }
+    }
 }

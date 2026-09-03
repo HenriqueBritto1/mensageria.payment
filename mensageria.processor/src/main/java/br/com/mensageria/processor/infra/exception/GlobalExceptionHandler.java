@@ -1,8 +1,6 @@
 package br.com.mensageria.processor.infra.exception;
 
-import br.com.mensageria.commons.exceptions.InsuficientBalanceException;
-import br.com.mensageria.commons.exceptions.PaymentNotFound;
-import br.com.mensageria.commons.exceptions.ResponseError;
+import br.com.mensageria.commons.exceptions.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -29,5 +27,31 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<ResponseError> handleInvalidTokenException(InvalidTokenException e) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                new ResponseError(HttpStatus.UNAUTHORIZED.value(), e.getMessage())
+        );
+    }
 
+    @ExceptionHandler(ApiRuleException.class)
+    public ResponseEntity<ResponseError> handleApiRuleException(ApiRuleException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                new ResponseError(HttpStatus.CONFLICT.value(), e.getMessage())
+        );
+    }
+
+    @ExceptionHandler(PermissionNotAllowed.class)
+    public ResponseEntity<ResponseError> handlePermissionNotAllowed(PermissionNotAllowed e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                new ResponseError(HttpStatus.FORBIDDEN.value(), e.getMessage())
+        );
+    }
+
+    @ExceptionHandler(RequestLimitExceeded.class)
+    public ResponseEntity<ResponseError> handleRequestLimitExceeded(RequestLimitExceeded e) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(
+                new ResponseError(HttpStatus.TOO_MANY_REQUESTS.value(), e.getMessage())
+        );
+    }
 }
