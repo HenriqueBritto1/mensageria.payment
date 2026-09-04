@@ -1,9 +1,6 @@
 package br.com.mensageria.api.infra;
 
-import br.com.mensageria.api.application.dto.PaymentReceiveDTO;
-import br.com.mensageria.api.application.dto.PaymentValidatedDTO;
-import br.com.mensageria.commons.exceptions.PaymentError;
-import br.com.mensageria.commons.exceptions.PaymentNotFound;
+import br.com.mensageria.commons.dto.PaymentReceiveDTO;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
@@ -14,6 +11,7 @@ public class PaymentPublisher {
     private final static String ROUTING_KEY= "payment.validated";
     private static final String EXCHANGE_NAME = "mensageria-payment-exchange";
     private static final String ROUTING_KEY_NOTIFICATION = "payment.notification";
+    private static final String ROUTING_KEY_CANCEL="payment.cancel";
 
     private ObjectMapper mapper = new ObjectMapper();
     private final RabbitTemplate rabbitTemplate;
@@ -31,7 +29,7 @@ public class PaymentPublisher {
             Object response = rabbitTemplate.convertSendAndReceive(EXCHANGE_NAME, ROUTING_KEY_NOTIFICATION, json);
             return mapper.readValue((String) response, PaymentReceiveDTO.class);
         }catch (Exception e){
-            throw new PaymentError("Erro ao buscar Pagamento");
+            throw new RuntimeException("Erro ao buscar Pagamento");
         }
     }
 
@@ -40,7 +38,17 @@ public class PaymentPublisher {
             Object response = rabbitTemplate.convertSendAndReceive(EXCHANGE_NAME, ROUTING_KEY, json);
             return mapper.readValue((String) response, PaymentReceiveDTO.class);
         }catch (Exception e){
-            throw new PaymentError("Erro ao enviar Pagamento");
+            throw new RuntimeException("Erro ao enviar Pagamento");
+        }
+    }
+
+    public PaymentReceiveDTO publishAndReceiveCancel(String json){
+        try {
+            Object response = rabbitTemplate.convertSendAndReceive(EXCHANGE_NAME, ROUTING_KEY_CANCEL, json);
+            System.out.println(response.toString());
+            return mapper.readValue((String) response, PaymentReceiveDTO.class);
+        }catch (Exception e){
+            throw new RuntimeException("Erro ao cancelar Pagamento");
         }
     }
 }

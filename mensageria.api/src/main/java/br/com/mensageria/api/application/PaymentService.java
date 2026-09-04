@@ -1,22 +1,17 @@
 package br.com.mensageria.api.application;
 
-import br.com.mensageria.api.application.dto.PaymentReceiveDTO;
-import br.com.mensageria.api.application.dto.PaymentValidatedDTO;
+import br.com.mensageria.api.application.dto.PaymentCancelResponseDTO;
 import br.com.mensageria.api.application.dto.PaymentRequestDTO;
 import br.com.mensageria.api.application.dto.PaymentResponseDTO;
 import br.com.mensageria.api.infra.PaymentPublisher;
 import br.com.mensageria.api.infra.entity.PaymentRequest;
 import br.com.mensageria.api.infra.repository.PaymentRequestRepository;
-import br.com.mensageria.commons.dto.Payer;
-import br.com.mensageria.commons.dto.PaymentDTO;
-import br.com.mensageria.commons.dto.PaymentMethodDTO;
-import br.com.mensageria.commons.dto.Transactions;
-import br.com.mensageria.commons.enums.CardFlag;
+
+import br.com.mensageria.commons.dto.*;
 import br.com.mensageria.commons.enums.CurrencyEnum;
 import br.com.mensageria.commons.enums.PaymentStatus;
 import br.com.mensageria.commons.enums.TypePayment;
 import com.google.gson.Gson;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -25,7 +20,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -33,9 +27,6 @@ import java.util.UUID;
 
 @Service
 public class PaymentService {
-
-    @Autowired
-    private RabbitTemplate rabbitTemplate;
 
     @Autowired
     private PaymentRequestRepository paymentRequestRepository;
@@ -72,8 +63,7 @@ public class PaymentService {
         List<PaymentDTO> list = new ArrayList<>();
         list.add(paymentDto);
 
-        Transactions transactions = new Transactions();
-        transactions.setPayments(list);
+        Transactions transactions = new Transactions(list);
 
         PaymentValidatedDTO dto = new PaymentValidatedDTO(
                 pagamento.getId(),
@@ -171,5 +161,19 @@ public class PaymentService {
 
     public PaymentReceiveDTO verificarPagamento(String transactionId){
         return publisher.publishAndReceive(transactionId);
+    }
+
+    public PaymentCancelResponseDTO cancelarOrder(String transactionId){
+        var response = publisher.publishAndReceiveCancel(transactionId);
+        return new PaymentCancelResponseDTO(
+                response.id(),
+                response.amount(),
+                response.currency(),
+                response.externalReference(),
+                response.status(),
+                response.orderId(),
+                response.createdAt(),
+                "Order cancelada com sucesso!"
+        );
     }
 }

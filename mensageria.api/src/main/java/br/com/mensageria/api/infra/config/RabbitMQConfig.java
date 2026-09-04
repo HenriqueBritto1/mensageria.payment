@@ -26,6 +26,7 @@ public class RabbitMQConfig {
     public MessageConverter jacksonMessageConverter() {
         return new JacksonJsonMessageConverter();
     }
+
     @Bean
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, MessageConverter converter) {
         RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
@@ -41,11 +42,7 @@ public class RabbitMQConfig {
 
         factory.setAdviceChain(RetryInterceptorBuilder.stateless()
                 .maxRetries(3)
-                .backOffOptions(
-                        1000,
-                        1.0,
-                        10000
-                )
+                .backOffOptions(1000, 1.0, 10000)
                 .recoverer(new RejectAndDontRequeueRecoverer())
                 .build()
         );

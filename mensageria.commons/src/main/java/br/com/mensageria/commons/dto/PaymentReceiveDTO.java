@@ -1,4 +1,4 @@
-package br.com.mensageria.processor.application.dto;
+package br.com.mensageria.commons.dto;
 
 import br.com.mensageria.commons.enums.CurrencyEnum;
 import br.com.mensageria.commons.enums.PaymentStatus;

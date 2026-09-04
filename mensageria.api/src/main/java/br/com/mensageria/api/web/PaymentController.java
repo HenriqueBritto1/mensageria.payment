@@ -1,8 +1,10 @@
 package br.com.mensageria.api.web;
 
 import br.com.mensageria.api.application.PaymentService;
+import br.com.mensageria.api.application.dto.PaymentCancelResponseDTO;
 import br.com.mensageria.api.application.dto.PaymentRequestDTO;
 import br.com.mensageria.api.application.dto.PaymentResponseDTO;
+import br.com.mensageria.commons.dto.PaymentReceiveDTO;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -22,7 +24,12 @@ public class PaymentController {
     }
 
     @GetMapping("/verificar-pagamento/{transactionId}")
-    public ResponseEntity<?> verificarPagamento(@PathVariable String transactionId){
+    public ResponseEntity<PaymentReceiveDTO> verificarPagamento(@PathVariable String transactionId){
         return ResponseEntity.ok(paymentService.verificarPagamento(transactionId));
+    }
+
+    @DeleteMapping("/cancelar/{transactionId}")
+    public ResponseEntity<PaymentCancelResponseDTO> cancelar(@PathVariable String transactionId){
+        return ResponseEntity.ok(paymentService.cancelarOrder(transactionId));
     }
 }

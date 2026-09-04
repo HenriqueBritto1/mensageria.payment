@@ -1,10 +1,7 @@
 package br.com.mensageria.api.application.dto;
 
-import br.com.mensageria.commons.dto.Address;
 import br.com.mensageria.commons.dto.Payer;
 import br.com.mensageria.commons.dto.PaymentMethodDTO;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 

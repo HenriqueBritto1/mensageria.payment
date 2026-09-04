@@ -7,16 +7,14 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-public record PaymentReceiveDTO(
+public record PaymentCancelResponseDTO(
         UUID id,
-        String correlationId,
         BigDecimal amount,
         CurrencyEnum currency,
         String externalReference,
         PaymentStatus status,
         String orderId,
-        String callbackUrl,
-        String ticketUrl,
-        OffsetDateTime createdAt
+        OffsetDateTime createdAt,
+        String message
 ) {
 }

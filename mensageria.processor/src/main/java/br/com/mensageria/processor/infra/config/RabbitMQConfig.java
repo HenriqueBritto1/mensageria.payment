@@ -11,8 +11,6 @@ import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.util.ErrorHandler;
-import org.springframework.util.backoff.FixedBackOff;
 
 @Configuration
 public class RabbitMQConfig {
@@ -22,6 +20,10 @@ public class RabbitMQConfig {
 
     private static final String QUEUE_NOTIFICATION_NAME = "payment.notification";
     private static final String ROUTING_KEY_NOTIFICATION = "payment.notification";
+
+    private static final String QUEUE_CANCEL_NAME = "payment.cancel";
+    private static final String ROUTING_KEY_CANCEL = "payment.cancel";
+
     @Bean
     public Exchange exchange() {
         return ExchangeBuilder
@@ -60,6 +62,23 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue cancelQueue() {
+        return QueueBuilder
+                .durable(QUEUE_CANCEL_NAME)
+                .build();
+    }
+
+    @Bean
+    public Binding cancelBinding() {
+        return BindingBuilder
+                .bind(cancelQueue())
+                .to(exchange())
+                .with(ROUTING_KEY_CANCEL)
+                .noargs();
+    }
+
+
+    @Bean
     public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(ConnectionFactory connectionFactory, MessageConverter jacksonMessageConverter) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
@@ -67,11 +86,7 @@ public class RabbitMQConfig {
 
         factory.setAdviceChain(RetryInterceptorBuilder.stateless()
                         .maxRetries(3)
-                        .backOffOptions(
-                                1000,
-                                1.0,
-                                10000
-                        )
+                        .backOffOptions(1000, 1.0, 10000)
                         .recoverer(new RejectAndDontRequeueRecoverer())
                         .build()
         );
