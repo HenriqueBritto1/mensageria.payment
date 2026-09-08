@@ -12,6 +12,7 @@ import br.com.mensageria.commons.enums.CurrencyEnum;
 import br.com.mensageria.commons.enums.PaymentStatus;
 import br.com.mensageria.commons.enums.TypePayment;
 import com.google.gson.Gson;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -24,9 +25,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.logging.Logger;
 
 @Service
 public class PaymentService {
+    private final static Logger log = Logger.getLogger(PaymentService.class.getName());
 
     @Autowired
     private PaymentRequestRepository paymentRequestRepository;
@@ -37,7 +40,10 @@ public class PaymentService {
     private final Gson gson = new Gson();
 
     public PaymentResponseDTO pagar(PaymentRequestDTO pagamentoRequest){
+        log.info("Iniciando processo de pagamento");
+        log.info("Validando...");
         validarPagamento(pagamentoRequest);
+        log.info("Pagamento validado com sucesso");
 
         PaymentRequest pagamento = new PaymentRequest();
         Integer count = paymentRequestRepository.findLast().orElse(0);
@@ -75,7 +81,7 @@ public class PaymentService {
         );
 
         PaymentReceiveDTO receiveDTO = publisher.publishAndReceivePayment(gson.toJson(dto));
-
+        log.info("Order criada com sucesso!");
         return new PaymentResponseDTO(
                 receiveDTO.id(),
                 receiveDTO.orderId(),

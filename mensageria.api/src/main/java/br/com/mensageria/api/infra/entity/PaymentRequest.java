@@ -56,9 +56,6 @@ public class PaymentRequest {
     @Column
     private Integer count;
 
-    @Column(name = "order_id")
-    private String orderId;
-
 
     public UUID getId() {
         return id;
@@ -156,11 +153,4 @@ public class PaymentRequest {
         this.count = count;
     }
 
-    public String getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(String orderId) {
-        this.orderId = orderId;
-    }
 }

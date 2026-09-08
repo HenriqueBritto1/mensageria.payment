@@ -25,9 +25,11 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import java.util.logging.Logger;
 
 @Service
 public class ProcessorService {
+    private final static Logger log = Logger.getLogger(ProcessorService.class.getName());
 
     @Value("${mercado-pago.token}")
     private String TOKEN;
@@ -50,17 +52,14 @@ public class ProcessorService {
 
     @Transactional
     public Object process(String msg) {
+
         PaymentValidatedDTO dto = gson.fromJson(msg, PaymentValidatedDTO.class);
 
         PaymentRequest request = paymentRequestRepository.findById(dto.pagamentoId())
                 .orElseThrow(() -> new PaymentNotFound("Ocorreu um erro: Pagamento nao encontrado"));
-
+        log.info("Processando order ID: "+ request.getId());
         Payment entity = new Payment();
         try {
-            var mercadoPagoRequest = gson.toJson(montarMercadoPagoRequest(dto, request));
-
-            System.out.println(mercadoPagoRequest);
-
             // Chamada à API de pagamento.
             URI uri = URI.create(url + "v1/orders");
             HttpRequest req = HttpRequest.newBuilder()
@@ -74,8 +73,7 @@ public class ProcessorService {
             HttpResponse<String> response = httpClient()
                     .send(req, HttpResponse.BodyHandlers.ofString());
 
-            System.out.println("STATUS: " + response.statusCode());
-            System.out.println("BODY: " + response.body());
+            log.info("Resposta da API: " + response.statusCode());
 
             request.setStatus(PaymentStatus.FAILED);
             if (response.statusCode() != 201) {
@@ -102,11 +100,14 @@ public class ProcessorService {
 
             payRepo.save(entity);
             paymentRequestRepository.save(request);
+            log.info("Order criada com sucesso! Id: " + request.getId());
             return mapper.writeValueAsString(responseAPI);
 
         } catch (IOException e) {
+            log.severe("Erro ao integrar com a API: "+ e.getMessage());
             throw new RuntimeException(e.getMessage());
         } catch (InterruptedException e) {
+            log.severe("Erro ao integrar com a API: "+ e.getMessage());
             Thread.currentThread().interrupt();
             throw new RuntimeException(e.getMessage());
         }
@@ -129,14 +130,14 @@ public class ProcessorService {
                     .build();
 
             HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString());
-            System.out.println(response.body());
+
+            log.info("Resposta da API: " + response.statusCode());
 
             //Valida resposta da API
             tratar(response.statusCode());
 
             MercadoPagoResponseDTO responseMercado = gson.fromJson(response.body(), MercadoPagoResponseDTO.class);
             var responsejson = gson.toJson(responseMercado);
-            System.out.println(responsejson);
             pay.setStatus(PaymentStatus.valueOf(responseMercado.status().toUpperCase()));
             pay.setUpdatedAt(OffsetDateTime.now());
             entity.setStatus(PaymentStatus.valueOf(responseMercado.status().toUpperCase()));
@@ -147,11 +148,13 @@ public class ProcessorService {
             PaymentReceiveDTO dto = montarDTO(pay, entity, responseMercado);
 
             var json = mapper.writeValueAsString(dto);
-            System.out.println(json);
+
             return json;
         } catch (IOException e) {
+            log.severe("Erro ao integrar com a API: "+ e.getMessage());
             throw new RuntimeException(e.getMessage());
         } catch (InterruptedException ex) {
+            log.severe("Erro ao integrar com a API: "+ ex.getMessage());
             Thread.currentThread().interrupt();
             throw new RuntimeException(ex.getMessage());
         }
@@ -166,7 +169,7 @@ public class ProcessorService {
                     .orElseThrow(() -> new PaymentNotFound("Pagamento não encontrado na base de dados"));
             var payment = payRepo.findByCorrelationIdContainingIgnoreCase(entity.getCorrelationId())
                     .orElseThrow(() -> new PaymentNotFound("Pagamento não encontrado na base de dados"));
-
+            log.info("Cancelando order ID: "+ entity.getId());
             //Faz requisição para API do mercado pago
             HttpRequest request = HttpRequest.newBuilder()
                     .POST(HttpRequest.BodyPublishers.noBody())
@@ -177,8 +180,7 @@ public class ProcessorService {
                     .build();
 
             HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString());
-            System.out.println(response.statusCode());
-            System.out.println(response.body());
+            log.info("Resposta da API: " + response.statusCode());
             //Valida resposta da API
             tratar(response.statusCode());
 
@@ -191,12 +193,14 @@ public class ProcessorService {
             payment.setUpdatedAt(OffsetDateTime.now());
             paymentRequestRepository.save(entity);
             payRepo.save(payment);
-
+            log.info("Order cancelado com sucesso! Id: " + entity.getId());
             PaymentReceiveDTO responseDTO = montarDTO(entity, payment, dto);
             return mapper.writeValueAsString(responseDTO);
         } catch (IOException e) {
+            log.severe("Erro ao integrar com a API: "+ e.getMessage());
             throw new RuntimeException(e.getMessage());
         } catch (InterruptedException ex) {
+            log.severe("Erro ao integrar com a API: "+ ex.getMessage());
             Thread.currentThread().interrupt();
             throw new RuntimeException(ex.getMessage());
         }
