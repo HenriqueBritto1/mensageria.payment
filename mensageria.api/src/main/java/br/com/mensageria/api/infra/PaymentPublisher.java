@@ -1,6 +1,7 @@
 package br.com.mensageria.api.infra;
 
 import br.com.mensageria.commons.dto.PaymentReceiveDTO;
+import br.com.mensageria.commons.exceptions.PaymentError;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
@@ -29,7 +30,7 @@ public class PaymentPublisher {
             Object response = rabbitTemplate.convertSendAndReceive(EXCHANGE_NAME, ROUTING_KEY_NOTIFICATION, json);
             return mapper.readValue((String) response, PaymentReceiveDTO.class);
         }catch (Exception e){
-            throw new RuntimeException("Erro ao buscar Pagamento");
+            throw new PaymentError("Erro ao buscar Pagamento");
         }
     }
 
@@ -38,7 +39,7 @@ public class PaymentPublisher {
             Object response = rabbitTemplate.convertSendAndReceive(EXCHANGE_NAME, ROUTING_KEY, json);
             return mapper.readValue((String) response, PaymentReceiveDTO.class);
         }catch (Exception e){
-            throw new RuntimeException("Erro ao enviar Pagamento");
+            throw new PaymentError("Erro ao enviar Pagamento");
         }
     }
 
@@ -48,7 +49,7 @@ public class PaymentPublisher {
             System.out.println(response.toString());
             return mapper.readValue((String) response, PaymentReceiveDTO.class);
         }catch (Exception e){
-            throw new RuntimeException("Erro ao cancelar Pagamento");
+            throw new PaymentError("Erro ao cancelar Pagamento");
         }
     }
 }

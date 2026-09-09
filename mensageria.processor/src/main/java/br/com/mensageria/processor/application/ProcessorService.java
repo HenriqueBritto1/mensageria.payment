@@ -42,7 +42,7 @@ public class ProcessorService {
     @Autowired
     private PaymentRepository payRepo;
 
-    private ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper = new ObjectMapper();
 
     private HttpClient httpClient() {
         return HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
@@ -137,7 +137,7 @@ public class ProcessorService {
             tratar(response.statusCode());
 
             MercadoPagoResponseDTO responseMercado = gson.fromJson(response.body(), MercadoPagoResponseDTO.class);
-            var responsejson = gson.toJson(responseMercado);
+
             pay.setStatus(PaymentStatus.valueOf(responseMercado.status().toUpperCase()));
             pay.setUpdatedAt(OffsetDateTime.now());
             entity.setStatus(PaymentStatus.valueOf(responseMercado.status().toUpperCase()));
