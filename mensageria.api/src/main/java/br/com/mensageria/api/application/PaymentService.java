@@ -39,25 +39,25 @@ public class PaymentService {
 
     private final Gson gson = new Gson();
 
-    public PaymentResponseDTO pagar(PaymentRequestDTO pagamentoRequest){
+    public PaymentResponseDTO makePayment(PaymentRequestDTO pagamentoRequest){
         log.info("Iniciando processo de pagamento");
         log.info("Validando...");
-        validarPagamento(pagamentoRequest);
+        validatePayment(pagamentoRequest);
         log.info("Pagamento validado com sucesso");
 
-        PaymentRequest pagamento = new PaymentRequest();
+        PaymentRequest payment = new PaymentRequest();
         Integer count = paymentRequestRepository.findLast().orElse(0);
 
-        pagamento.setAmount(pagamentoRequest.total_amount());
-        pagamento.setExternalReference("ext_"+ LocalDateTime.now().getYear()+"_"+ (count + 1));
-        pagamento.setCurrency(CurrencyEnum.valueOf(pagamentoRequest.currency().toUpperCase()));
-        pagamento.setCount(count+1);
-        pagamento.setCallbackUrl(pagamentoRequest.callbackUrl());
-        pagamento.setMerchantId(SecurityContextHolder.getContext().getAuthentication().getName());
-        pagamento.setCreatedAt(OffsetDateTime.now());
-        pagamento.setCorrelationId(UUID.randomUUID().toString());
-        pagamento.setStatus(PaymentStatus.PENDING);
-        paymentRequestRepository.save(pagamento);
+        payment.setAmount(pagamentoRequest.total_amount());
+        payment.setExternalReference("ext_"+ LocalDateTime.now().getYear()+"_"+ (count + 1));
+        payment.setCurrency(CurrencyEnum.valueOf(pagamentoRequest.currency().toUpperCase()));
+        payment.setCount(count+1);
+        payment.setCallbackUrl(pagamentoRequest.callbackUrl());
+        payment.setMerchantId(SecurityContextHolder.getContext().getAuthentication().getName());
+        payment.setCreatedAt(OffsetDateTime.now());
+        payment.setCorrelationId(UUID.randomUUID().toString());
+        payment.setStatus(PaymentStatus.PENDING);
+        paymentRequestRepository.save(payment);
 
         PaymentDTO paymentDto = new PaymentDTO();
         paymentDto.setAmount(pagamentoRequest.total_amount().toString());
@@ -72,8 +72,8 @@ public class PaymentService {
         Transactions transactions = new Transactions(list);
 
         PaymentValidatedDTO dto = new PaymentValidatedDTO(
-                pagamento.getId(),
-                pagamento.getCorrelationId(),
+                payment.getId(),
+                payment.getCorrelationId(),
                 pagamentoRequest.payer(),
                 transactions,
                 pagamentoRequest.payer().getPhone(),
@@ -85,22 +85,22 @@ public class PaymentService {
         return new PaymentResponseDTO(
                 receiveDTO.id(),
                 receiveDTO.orderId(),
-                pagamento.getStatus(),
+                payment.getStatus(),
                 "Enviado para processamento"
         );
     }
 
-    private void validarPagamento(PaymentRequestDTO request) {
-        validarDadosComuns(request);
+    private void validatePayment(PaymentRequestDTO request) {
+        validateCommons(request);
 
         switch (request.payment_method().getType()) {
-            case credit_card, debit_card -> validarCartao(request);
-            case bank_transfer -> validarPix(request);
+            case credit_card, debit_card -> validateCard(request);
+            case bank_transfer -> validatePix(request);
             default -> throw new IllegalArgumentException("Tipo de pagamento não suportado");
         }
     }
 
-    private void validarDadosComuns(PaymentRequestDTO pagamento) {
+    private void validateCommons(PaymentRequestDTO pagamento) {
         if(pagamento.total_amount().compareTo(BigDecimal.ZERO)<=0){
             throw new IllegalArgumentException("valor inválido!");
         }
@@ -113,7 +113,7 @@ public class PaymentService {
         }
     }
 
-    private void validarCartao(PaymentRequestDTO request) {
+    private void validateCard(PaymentRequestDTO request) {
         PaymentMethodDTO method =  request.payment_method();
         if (method.getToken() == null || method.getToken().isBlank()) {
             throw new IllegalArgumentException("Token do cartão é obrigatório");
@@ -139,7 +139,7 @@ public class PaymentService {
         }
     }
 
-    private void validarPix(PaymentRequestDTO request) {
+    private void validatePix(PaymentRequestDTO request) {
         if (request.payer() == null) {
             throw new IllegalArgumentException("payer é obrigatório para Pix");
         }
@@ -165,11 +165,11 @@ public class PaymentService {
     }
 
 
-    public PaymentReceiveDTO verificarPagamento(String transactionId){
+    public PaymentReceiveDTO verifyOrder(String transactionId){
         return publisher.publishAndReceive(transactionId);
     }
 
-    public PaymentCancelResponseDTO cancelarOrder(String transactionId){
+    public PaymentCancelResponseDTO cancelOrder(String transactionId){
         var response = publisher.publishAndReceiveCancel(transactionId);
         return new PaymentCancelResponseDTO(
                 response.id(),
