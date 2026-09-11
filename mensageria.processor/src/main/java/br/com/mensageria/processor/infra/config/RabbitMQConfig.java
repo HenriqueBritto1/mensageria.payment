@@ -24,6 +24,16 @@ public class RabbitMQConfig {
     private static final String QUEUE_CANCEL_NAME = "payment.cancel";
     private static final String ROUTING_KEY_CANCEL = "payment.cancel";
 
+    private static final String DEAD_LETTER_EXCHANGE_NAME = "mensageria-payment-dlx";
+    private static final String DEAD_LETTER_PAY_QUEUE_NAME = "payment.validated.dlq";
+    private static final String DEAD_LETTER_ROUTING_KEY = "payment.validated.dlq";
+
+    private static final String DEAD_LETTER_ROUTING_KEY_NOTIFICATION = "payment.notification.dlq";
+    private static final String DEAD_LETTER_NOTIFICATION_QUEUE_NAME = "payment.notification.dlq";
+
+    private static final String DEAD_LETTER_CANCEL_QUEUE_NAME = "payment.cancel.dlq";
+    private static final String DEAD_LETTER_ROUTING_KEY_CANCEL = "payment.cancel.dlq";
+
     @Bean
     public Exchange exchange() {
         return ExchangeBuilder
@@ -31,9 +41,18 @@ public class RabbitMQConfig {
                 .build();
     }
     @Bean
+    public Exchange deadLetterExchange() {
+        return ExchangeBuilder
+                .topicExchange(DEAD_LETTER_EXCHANGE_NAME)
+                .build();
+    }
+
+    @Bean
     public Queue queue() {
         return QueueBuilder
                 .durable(QUEUE_NAME)
+                .deadLetterExchange(DEAD_LETTER_EXCHANGE_NAME)
+                .deadLetterRoutingKey(DEAD_LETTER_ROUTING_KEY)
                 .build();
     }
     @Bean
@@ -49,6 +68,8 @@ public class RabbitMQConfig {
     public Queue notificationQueue() {
         return QueueBuilder
                 .durable(QUEUE_NOTIFICATION_NAME)
+                .deadLetterExchange(DEAD_LETTER_EXCHANGE_NAME)
+                .deadLetterRoutingKey(DEAD_LETTER_ROUTING_KEY_NOTIFICATION)
                 .build();
     }
 
@@ -65,6 +86,8 @@ public class RabbitMQConfig {
     public Queue cancelQueue() {
         return QueueBuilder
                 .durable(QUEUE_CANCEL_NAME)
+                .deadLetterExchange(DEAD_LETTER_EXCHANGE_NAME)
+                .deadLetterRoutingKey(DEAD_LETTER_ROUTING_KEY_CANCEL)
                 .build();
     }
 
@@ -106,4 +129,51 @@ public class RabbitMQConfig {
         return rabbitTemplate;
     }
 
+    @Bean
+    public Queue deadLetterPayQueue() {
+        return QueueBuilder
+                .durable(DEAD_LETTER_PAY_QUEUE_NAME)
+                .build();
+    }
+
+    @Bean
+    public Binding deadLetterpayBinding() {
+        return BindingBuilder
+                .bind(deadLetterPayQueue())
+                .to(deadLetterExchange())
+                .with(DEAD_LETTER_ROUTING_KEY)
+                .noargs();
+    }
+
+    @Bean
+    public Queue deadLetterVerifyQueue(){
+        return QueueBuilder
+                .durable(DEAD_LETTER_NOTIFICATION_QUEUE_NAME)
+                .build();
+    }
+
+    @Bean
+    public Binding deadLetterVerifyBinding() {
+        return BindingBuilder
+                .bind(deadLetterVerifyQueue())
+                .to(deadLetterExchange())
+                .with(DEAD_LETTER_ROUTING_KEY_NOTIFICATION)
+                .noargs();
+    }
+
+    @Bean
+    public Queue deadLetterCancelQueue() {
+        return QueueBuilder
+                .durable(DEAD_LETTER_CANCEL_QUEUE_NAME)
+                .build();
+    }
+
+    @Bean
+    public Binding deadLetterCancelBinding() {
+        return BindingBuilder
+                .bind(deadLetterCancelQueue())
+                .to(deadLetterExchange())
+                .with(DEAD_LETTER_ROUTING_KEY_CANCEL)
+                .noargs();
+    }
 }

@@ -14,11 +14,19 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMQConfig {
     private static final String EXCHANGE_NAME = "mensageria-payment-exchange";
+    private static final String DEAD_LETTER_EXCHANGE_NAME = "mensageria-payment-dlx";
 
     @Bean
     public Exchange paymentExchange() {
         return ExchangeBuilder
                 .topicExchange(EXCHANGE_NAME)
+                .build();
+    }
+
+    @Bean
+    public Exchange deadLetterExchange() {
+        return ExchangeBuilder
+                .topicExchange(DEAD_LETTER_EXCHANGE_NAME)
                 .build();
     }
 

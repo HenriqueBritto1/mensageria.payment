@@ -21,19 +21,25 @@ public class PaymentController {
 
     @PostMapping("/pagamento")
     @Operation(summary = "Realizar pagamento", description = "Cria order de pagamento diretamente com a API do mercado pago.")
-    public ResponseEntity<PaymentResponseDTO> pagamento(@RequestBody @Valid PaymentRequestDTO pagamento){
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(paymentService.pagar(pagamento));
+    public ResponseEntity<PaymentResponseDTO> payment(@RequestBody @Valid PaymentRequestDTO pagamento){
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(paymentService.makePayment(pagamento));
     }
 
     @GetMapping("/pagamento/{transactionId}")
     @Operation(summary = "Verificar pagamento", description = "Verifica informações do pagamento e status atual")
-    public ResponseEntity<PaymentReceiveDTO> verificarPagamento(@PathVariable String transactionId){
-        return ResponseEntity.ok(paymentService.verificarPagamento(transactionId));
+    public ResponseEntity<PaymentReceiveDTO> verifyOrder(@PathVariable String transactionId){
+        return ResponseEntity.ok(paymentService.verifyOrder(transactionId));
     }
 
     @DeleteMapping("/pagamento/{transactionId}")
     @Operation(summary = "Cancelar pagamento", description = "Cancela ordem de pagamento")
-    public ResponseEntity<PaymentCancelResponseDTO> cancelar(@PathVariable String transactionId){
-        return ResponseEntity.ok(paymentService.cancelarOrder(transactionId));
+    public ResponseEntity<PaymentCancelResponseDTO> cancelOrder(@PathVariable String transactionId){
+        return ResponseEntity.ok(paymentService.cancelOrder(transactionId));
     }
+
+//    @PutMapping("/pagamento/{transactionId}")
+//    @Operation(summary = "alterar forma de pagamento", description = "Altera forma de pagamento")
+//    public ResponseEntity<PaymentResponseDTO> changePaymentMethod(@PathVariable String transactionId){
+//        return ResponseEntity.ok(paymentService.change(transactionId));
+//    }
 }
