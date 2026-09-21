@@ -12,6 +12,8 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import javax.swing.plaf.PanelUI;
+
 @Configuration
 public class RabbitMQConfig {
     private final static String EXCHANGE_NAME = "mensageria-payment-exchange";
@@ -24,6 +26,9 @@ public class RabbitMQConfig {
     private static final String QUEUE_CANCEL_NAME = "payment.cancel";
     private static final String ROUTING_KEY_CANCEL = "payment.cancel";
 
+    private static final String QUEUE_REFUND_NAME = "payment.refund";
+    private static final String ROUTING_KEY_REFUND = "payment.refund";
+
     private static final String DEAD_LETTER_EXCHANGE_NAME = "mensageria-payment-dlx";
     private static final String DEAD_LETTER_PAY_QUEUE_NAME = "payment.validated.dlq";
     private static final String DEAD_LETTER_ROUTING_KEY = "payment.validated.dlq";
@@ -34,6 +39,8 @@ public class RabbitMQConfig {
     private static final String DEAD_LETTER_CANCEL_QUEUE_NAME = "payment.cancel.dlq";
     private static final String DEAD_LETTER_ROUTING_KEY_CANCEL = "payment.cancel.dlq";
 
+    private static final String DEAD_LETTER_REFUND_QUEUE_NAME = "payment.refund.dlq";
+    private static final String DEAD_LETTER_REFUND_ROUTING_KEY = "payment.refund.dlq";
     @Bean
     public Exchange exchange() {
         return ExchangeBuilder
@@ -100,6 +107,23 @@ public class RabbitMQConfig {
                 .noargs();
     }
 
+    @Bean
+    public Queue refundQueue() {
+        return QueueBuilder
+                .durable(QUEUE_REFUND_NAME)
+                .deadLetterExchange(DEAD_LETTER_EXCHANGE_NAME)
+                .deadLetterRoutingKey(DEAD_LETTER_REFUND_ROUTING_KEY)
+                .build();
+    }
+
+    @Bean
+    public Binding refundBinding() {
+        return BindingBuilder
+                .bind(refundQueue())
+                .to(exchange())
+                .with(ROUTING_KEY_REFUND)
+                .noargs();
+    }
 
     @Bean
     public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(ConnectionFactory connectionFactory, MessageConverter jacksonMessageConverter) {
@@ -174,6 +198,22 @@ public class RabbitMQConfig {
                 .bind(deadLetterCancelQueue())
                 .to(deadLetterExchange())
                 .with(DEAD_LETTER_ROUTING_KEY_CANCEL)
+                .noargs();
+    }
+
+    @Bean
+    public Queue deadLetterRefundQueue() {
+        return QueueBuilder
+                .durable(DEAD_LETTER_REFUND_QUEUE_NAME)
+                .build();
+    }
+
+    @Bean
+    public Binding deadLetterRefundBinding() {
+        return BindingBuilder
+                .bind(deadLetterRefundQueue())
+                .to(deadLetterExchange())
+                .with(DEAD_LETTER_REFUND_ROUTING_KEY)
                 .noargs();
     }
 }

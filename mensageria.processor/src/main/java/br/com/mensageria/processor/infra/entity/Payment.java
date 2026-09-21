@@ -58,4 +58,7 @@ public class Payment {
 
     @Column(name = "client_token")
     private String clientToken;
+
+    @Column(name = "transaction_id")
+    private String transactionId;
 }

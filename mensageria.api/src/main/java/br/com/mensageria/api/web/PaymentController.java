@@ -37,9 +37,9 @@ public class PaymentController {
         return ResponseEntity.ok(paymentService.cancelOrder(transactionId));
     }
 
-//    @PutMapping("/pagamento/{transactionId}")
-//    @Operation(summary = "alterar forma de pagamento", description = "Altera forma de pagamento")
-//    public ResponseEntity<PaymentResponseDTO> changePaymentMethod(@PathVariable String transactionId){
-//        return ResponseEntity.ok(paymentService.change(transactionId));
-//    }
+    @PostMapping("/pagamento/refund/{transactionId}")
+    @Operation(summary = "Reembolsar pagamento", description = "Reembolsa transação completa")
+    public ResponseEntity<PaymentResponseDTO> refundTransaction(@PathVariable String transactionId){
+        return ResponseEntity.ok(paymentService.refund(transactionId));
+    }
 }

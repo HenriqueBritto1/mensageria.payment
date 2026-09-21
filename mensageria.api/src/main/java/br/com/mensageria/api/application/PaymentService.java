@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
 
 import java.math.BigDecimal;
@@ -38,6 +39,8 @@ public class PaymentService {
     private PaymentPublisher publisher;
 
     private final Gson gson = new Gson();
+
+    private ObjectMapper mapper = new ObjectMapper();
 
     public PaymentResponseDTO makePayment(PaymentRequestDTO pagamentoRequest){
         log.info("Iniciando processo de pagamento");
@@ -121,7 +124,7 @@ public class PaymentService {
         if (method.getToken().length() < 32 || method.getToken().length() > 33) {
             throw new IllegalArgumentException("Token do cartão deve possuir entre 32 e 33 caracteres");
         }
-        if (method.getStatement_descriptor().length() > 50) {
+        if (method.getStatement_descriptor()!=null && method.getStatement_descriptor().length() > 50) {
             throw new IllegalArgumentException("statement_descriptor deve possuir no máximo 50 caracteres");
         }
         //Validação específica crédito
@@ -183,5 +186,13 @@ public class PaymentService {
         );
     }
 
-
+    public PaymentResponseDTO refund(String transactionId){
+        PaymentReceiveDTO response = publisher.publishAndReceiveRefund(transactionId);
+        return new PaymentResponseDTO(
+                response.id(),
+                response.orderId(),
+                response.status(),
+                "Transação reembolsada com sucesso!"
+        );
+    }
 }

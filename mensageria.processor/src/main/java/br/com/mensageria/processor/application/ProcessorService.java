@@ -1,11 +1,12 @@
 package br.com.mensageria.processor.application;
 
 import br.com.mensageria.commons.exceptions.*;
-import br.com.mensageria.processor.application.dto.MercadoPagoRequestDTO;
-import br.com.mensageria.processor.application.dto.MercadoPagoResponseDTO;
+import br.com.mensageria.processor.application.dto.*;
 import br.com.mensageria.commons.dto.PaymentReceiveDTO;
 import br.com.mensageria.commons.dto.PaymentValidatedDTO;
 
+import br.com.mensageria.processor.application.mappers.MercadoPagoMapper;
+import br.com.mensageria.processor.application.mappers.PaymentMapper;
 import br.com.mensageria.processor.infra.entity.Payment;
 import br.com.mensageria.commons.enums.PaymentStatus;
 import br.com.mensageria.processor.infra.entity.PaymentRequest;
@@ -24,6 +25,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -44,11 +47,15 @@ public class ProcessorService {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
+    private final Gson gson = new Gson();
+
+    private final PaymentMapper paymentMapper = new PaymentMapper();
+
+    private final MercadoPagoMapper mercadoMapper = new MercadoPagoMapper();
+
     private HttpClient httpClient() {
         return HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
     }
-
-    private final Gson gson = new Gson();
 
     @Transactional
     public Object process(String msg) {
@@ -58,13 +65,14 @@ public class ProcessorService {
         PaymentRequest request = paymentRequestRepository.findById(dto.pagamentoId())
                 .orElseThrow(() -> new PaymentNotFound("Ocorreu um erro: Pagamento nao encontrado"));
         log.info("Processando order ID: "+ request.getId());
-        Payment entity = new Payment();
+
         try {
             // Chamada à API de pagamento.
             URI uri = URI.create(url + "v1/orders");
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(uri)
-                    .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(montarMercadoPagoRequest(dto, request))))
+                    .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(
+                            mercadoMapper.montarMercadoPagoRequest(dto, request))))
                     .header("Content-Type", "application/json")
                     .header("Authorization", "Bearer " + TOKEN)
                     .header("X-Idempotency-Key", request.getId().toString())
@@ -73,8 +81,8 @@ public class ProcessorService {
             HttpResponse<String> response = httpClient()
                     .send(req, HttpResponse.BodyHandlers.ofString());
 
-            log.info("Resposta da API: " + response.statusCode());
-
+            log.info("Process - Response status" + response.statusCode());
+            log.info(response.body());
             request.setStatus(PaymentStatus.FAILED);
             if (response.statusCode() != 201) {
                 request.setRejectedReason(response.body());
@@ -83,6 +91,8 @@ public class ProcessorService {
 
             //Valida resposta da API
             tratar(response.statusCode());
+
+            Payment entity = new Payment();
 
             MercadoPagoResponseDTO responseMercado = gson.fromJson(response.body(), MercadoPagoResponseDTO.class);
             request.setStatus(PaymentStatus.PROCESSING);
@@ -95,8 +105,9 @@ public class ProcessorService {
             entity.setCallbackUrl(request.getCallbackUrl());
             entity.setMerchantId(request.getMerchantId());
             entity.setCorrelationId(request.getCorrelationId());
+            entity.setTransactionId(responseMercado.transactions().payments().getFirst().id());
 
-            PaymentReceiveDTO responseAPI = montarDTO(request, entity, responseMercado);
+            PaymentReceiveDTO responseAPI = paymentMapper.montarReceiveDTO(request, entity, responseMercado);
 
             payRepo.save(entity);
             paymentRequestRepository.save(request);
@@ -110,6 +121,9 @@ public class ProcessorService {
             log.severe("Erro ao integrar com a API: "+ e.getMessage());
             Thread.currentThread().interrupt();
             throw new RuntimeException(e.getMessage());
+        }catch (Exception exception){
+            log.severe("Erro ao integrar com a API: "+ exception.getMessage());
+            throw exception;
         }
     }
 
@@ -131,7 +145,7 @@ public class ProcessorService {
 
             HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString());
 
-            log.info("Resposta da API: " + response.statusCode());
+            log.info("Verify - Response status: " + response.statusCode());
 
             //Valida resposta da API
             tratar(response.statusCode());
@@ -145,18 +159,18 @@ public class ProcessorService {
 
             paymentRequestRepository.save(pay);
             payRepo.save(entity);
-            PaymentReceiveDTO dto = montarDTO(pay, entity, responseMercado);
+            PaymentReceiveDTO dto = paymentMapper.montarReceiveDTO(pay, entity, responseMercado);
 
             var json = mapper.writeValueAsString(dto);
 
             return json;
-        } catch (IOException e) {
-            log.severe("Erro ao integrar com a API: "+ e.getMessage());
-            throw new RuntimeException(e.getMessage());
         } catch (InterruptedException ex) {
             log.severe("Erro ao integrar com a API: "+ ex.getMessage());
             Thread.currentThread().interrupt();
             throw new RuntimeException(ex.getMessage());
+        } catch (Exception exception){
+            log.severe("Erro ao integrar com a API: "+ exception.getMessage());
+            throw new RuntimeException(exception.getMessage());
         }
     }
 
@@ -180,7 +194,7 @@ public class ProcessorService {
                     .build();
 
             HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString());
-            log.info("Resposta da API: " + response.statusCode());
+            log.info("Cancel order - Response status: " + response.statusCode());
             //Valida resposta da API
             tratar(response.statusCode());
 
@@ -194,47 +208,18 @@ public class ProcessorService {
             paymentRequestRepository.save(entity);
             payRepo.save(payment);
             log.info("Order cancelado com sucesso! Id: " + entity.getId());
-            PaymentReceiveDTO responseDTO = montarDTO(entity, payment, dto);
+            PaymentReceiveDTO responseDTO = paymentMapper.montarReceiveDTO(entity, payment, dto);
             return mapper.writeValueAsString(responseDTO);
-        } catch (IOException e) {
-            log.severe("Erro ao integrar com a API: "+ e.getMessage());
-            throw new RuntimeException(e.getMessage());
         } catch (InterruptedException ex) {
             log.severe("Erro ao integrar com a API: "+ ex.getMessage());
             Thread.currentThread().interrupt();
             throw new RuntimeException(ex.getMessage());
+        } catch (Exception exception){
+            log.severe("Erro ao integrar com a API: "+ exception.getMessage());
+            throw new RuntimeException(exception.getMessage());
         }
     }
 
-    private PaymentReceiveDTO montarDTO(PaymentRequest entity, Payment payment, MercadoPagoResponseDTO mercadoPago) {
-        return new PaymentReceiveDTO(
-                entity.getId(),
-                entity.getCorrelationId(),
-                entity.getAmount(),
-                entity.getCurrency(),
-                entity.getExternalReference(),
-                PaymentStatus.valueOf(mercadoPago.status().toUpperCase()),
-                payment.getOrderId(),
-                mercadoPago.client_token(),
-                entity.getCallbackUrl(),
-                mercadoPago.transactions().payments().getFirst().payment_method().ticket_url(),
-                entity.getCreatedAt()
-        );
-    }
-
-    private MercadoPagoRequestDTO montarMercadoPagoRequest(PaymentValidatedDTO dto, PaymentRequest entity) {
-        if (dto == null) {
-            return null;
-        }
-        MercadoPagoRequestDTO request = new MercadoPagoRequestDTO();
-        request.setType("online");
-        request.setPayer(dto.payer());
-        request.setTotal_amount(entity.getAmount().toString());
-        request.setExternal_reference(entity.getExternalReference());
-        request.setTransactions(dto.transactions());
-
-        return request;
-    }
 
     private void tratar(int statusCode) {
         switch (statusCode) {
@@ -246,7 +231,55 @@ public class ProcessorService {
             case 409 -> throw new ApiRuleException("Ação bloqueada por regra");
             case 423 -> throw new ResourceLocked("Chave de idempotência bloqueada");
             case 429 -> throw new RequestLimitExceeded("Limite de requisições excedido");
-            case 500 -> throw new RuntimeException("Chamada a API falhou");
+            case 422, 500 -> throw new RuntimeException("Chamada a API falhou");
+        }
+    }
+
+    public Object refund(String dto) {
+        try {
+            String transactionId = gson.fromJson(dto, String.class);
+            var paymentRequest = paymentRequestRepository.findById(UUID.fromString(transactionId))
+                    .orElseThrow(() -> new PaymentNotFound("Pagamento não encontrado na base de dados"));
+            var entity = payRepo.findByCorrelationIdContainingIgnoreCase(paymentRequest.getCorrelationId())
+                    .orElseThrow(()->new PaymentNotFound("Pagamento não encontrado"));
+
+            TransactionRequestDTO transactionRequest = new TransactionRequestDTO(
+                    entity.getTransactionId(),
+                    entity.getAmount().toString()
+            );
+            List<TransactionRequestDTO> transaction = new ArrayList<>();
+            transaction.add(transactionRequest);
+            RefundRequestDTO refundRequest = new RefundRequestDTO(
+                    transaction);
+            log.info("URL Mercado Pago: " + url);
+            log.info("Request Body Mercado Pago: + " + gson.toJson(refundRequest));
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(refundRequest)))
+                    .uri(URI.create(url + "v1/orders/" + entity.getOrderId() + "/refund"))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + TOKEN)
+                    .header("X-Idempotency-Key", UUID.randomUUID().toString())
+                    .build();
+
+            HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString());
+            log.info("Refund - Response Status: " + response.statusCode());
+            tratar(response.statusCode());
+
+            var responseDTO = gson.fromJson(response.body(), MercadoPagoRefundResponseDTO.class);
+            entity.setStatus(PaymentStatus.valueOf(responseDTO.status().toUpperCase()));
+            entity.setUpdatedAt(OffsetDateTime.now());
+            payRepo.save(entity);
+
+            PaymentReceiveDTO receiveDTO = paymentMapper.montarReceiveDTORefund(paymentRequest, entity, responseDTO);
+            return mapper.writeValueAsString(receiveDTO);
+        } catch (InterruptedException exception){
+            log.severe("Erro ao integrar com a API: "+ exception.getMessage());
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(exception.getMessage());
+        } catch (Exception exception){
+            log.severe("Erro ao integrar com a API: "+ exception.getMessage());
+            throw new RuntimeException(exception.getMessage());
         }
     }
 }

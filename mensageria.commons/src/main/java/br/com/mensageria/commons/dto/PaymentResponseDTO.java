@@ -1,6 +1,7 @@
 package br.com.mensageria.commons.dto;
 
 public record PaymentResponseDTO(
+        String id,
         String amount,
         String paid_amount,
         String taxes_amount,

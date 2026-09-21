@@ -24,4 +24,9 @@ public class PaymentProcessorConsumer {
     public Object cancel(String dto){
         return service.cancel(dto);
     }
+
+    @RabbitListener(queues = "payment.refund")
+    public Object change(String dto){
+        return service.refund(dto);
+    }
 }

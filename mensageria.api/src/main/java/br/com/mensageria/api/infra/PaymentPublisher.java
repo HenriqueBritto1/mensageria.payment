@@ -13,6 +13,7 @@ public class PaymentPublisher {
     private static final String EXCHANGE_NAME = "mensageria-payment-exchange";
     private static final String ROUTING_KEY_NOTIFICATION = "payment.notification";
     private static final String ROUTING_KEY_CANCEL="payment.cancel";
+    private static final String ROUTING_KEY_REFUND="payment.refund";
 
     private ObjectMapper mapper = new ObjectMapper();
     private final RabbitTemplate rabbitTemplate;
@@ -50,6 +51,15 @@ public class PaymentPublisher {
             return mapper.readValue((String) response, PaymentReceiveDTO.class);
         }catch (Exception e){
             throw new PaymentError("Erro ao cancelar Pagamento");
+        }
+    }
+
+    public PaymentReceiveDTO publishAndReceiveRefund(String json){
+        try {
+            Object response = rabbitTemplate.convertSendAndReceive(EXCHANGE_NAME, ROUTING_KEY_REFUND, json);
+            return mapper.readValue((String) response, PaymentReceiveDTO.class);
+        }catch (Exception e){
+            throw new PaymentError("Erro ao reembolsar Pagamento");
         }
     }
 }

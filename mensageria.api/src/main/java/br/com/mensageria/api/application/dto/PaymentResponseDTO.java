@@ -8,6 +8,6 @@ public record PaymentResponseDTO(
         UUID transactionId,
         String correlationId,
         PaymentStatus status,
-        String mensagem
+        String message
 ) {
 }
