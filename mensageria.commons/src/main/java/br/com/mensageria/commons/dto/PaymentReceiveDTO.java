@@ -1,4 +1,4 @@
-package br.com.mensageria.api.application.dto;
+package br.com.mensageria.commons.dto;
 
 import br.com.mensageria.commons.enums.CurrencyEnum;
 import br.com.mensageria.commons.enums.PaymentStatus;
@@ -15,7 +15,9 @@ public record PaymentReceiveDTO(
         String externalReference,
         PaymentStatus status,
         String orderId,
+        String clientToken,
         String callbackUrl,
+        String ticketUrl,
         OffsetDateTime createdAt
 ) {
 }

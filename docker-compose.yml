@@ -76,6 +76,8 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/payment
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - MERCADO_PAGO_API_KEY=${MERCADO_PAGO_API_KEY}
+      - MERCADO_PAGO_TOKEN=${MERCADO_PAGO_TOKEN}
     depends_on:
       rabbitmq:
         condition: service_healthy

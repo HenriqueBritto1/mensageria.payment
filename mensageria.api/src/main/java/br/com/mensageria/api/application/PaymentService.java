@@ -1,30 +1,36 @@
 package br.com.mensageria.api.application;
 
-import br.com.mensageria.api.application.dto.PaymentReceiveDTO;
-import br.com.mensageria.api.application.dto.PaymentValidatedDTO;
+import br.com.mensageria.api.application.dto.PaymentCancelResponseDTO;
 import br.com.mensageria.api.application.dto.PaymentRequestDTO;
 import br.com.mensageria.api.application.dto.PaymentResponseDTO;
 import br.com.mensageria.api.infra.PaymentPublisher;
 import br.com.mensageria.api.infra.entity.PaymentRequest;
 import br.com.mensageria.api.infra.repository.PaymentRequestRepository;
+
+import br.com.mensageria.commons.dto.*;
 import br.com.mensageria.commons.enums.CurrencyEnum;
 import br.com.mensageria.commons.enums.PaymentStatus;
+import br.com.mensageria.commons.enums.TypePayment;
 import com.google.gson.Gson;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.logging.Logger;
 
 @Service
 public class PaymentService {
-
-    @Autowired
-    private RabbitTemplate rabbitTemplate;
+    private final static Logger log = Logger.getLogger(PaymentService.class.getName());
 
     @Autowired
     private PaymentRequestRepository paymentRequestRepository;
@@ -34,55 +40,159 @@ public class PaymentService {
 
     private final Gson gson = new Gson();
 
-    public PaymentResponseDTO pagar(PaymentRequestDTO pagamentoRequest){
-        validar(pagamentoRequest);
+    private ObjectMapper mapper = new ObjectMapper();
 
-        PaymentRequest pagamento = new PaymentRequest();
+    public PaymentResponseDTO makePayment(PaymentRequestDTO pagamentoRequest){
+        log.info("Iniciando processo de pagamento");
+        log.info("Validando...");
+        validatePayment(pagamentoRequest);
+        log.info("Pagamento validado com sucesso");
 
-        pagamento.setAmount(pagamentoRequest.amount());
-        pagamento.setExternalReference(pagamentoRequest.externalReference());
-        pagamento.setCurrency(CurrencyEnum.valueOf(pagamentoRequest.currency().toUpperCase()));
+        PaymentRequest payment = new PaymentRequest();
+        Integer count = paymentRequestRepository.findLast().orElse(0);
 
-        pagamento.setCallbackUrl(pagamentoRequest.callbackUrl());
-        pagamento.setMerchantId(SecurityContextHolder.getContext().getAuthentication().getName());
-        pagamento.setCreatedAt(OffsetDateTime.now());
-        pagamento.setCorrelationId(UUID.randomUUID().toString());
-        pagamento.setStatus(PaymentStatus.PENDENTE);
-        paymentRequestRepository.save(pagamento);
+        payment.setAmount(pagamentoRequest.total_amount());
+        payment.setExternalReference("ext_"+ LocalDateTime.now().getYear()+"_"+ (count + 1));
+        payment.setCurrency(CurrencyEnum.valueOf(pagamentoRequest.currency().toUpperCase()));
+        payment.setCount(count+1);
+        payment.setCallbackUrl(pagamentoRequest.callbackUrl());
+        payment.setMerchantId(SecurityContextHolder.getContext().getAuthentication().getName());
+        payment.setCreatedAt(OffsetDateTime.now());
+        payment.setCorrelationId(UUID.randomUUID().toString());
+        payment.setStatus(PaymentStatus.PENDING);
+        paymentRequestRepository.save(payment);
+
+        PaymentDTO paymentDto = new PaymentDTO();
+        paymentDto.setAmount(pagamentoRequest.total_amount().toString());
+        paymentDto.setPayment_method(pagamentoRequest.payment_method());
+        if(Objects.equals(pagamentoRequest.payment_method().getType(), TypePayment.bank_transfer)){
+            paymentDto.setExpiration_time("P1D");
+        }
+
+        List<PaymentDTO> list = new ArrayList<>();
+        list.add(paymentDto);
+
+        Transactions transactions = new Transactions(list);
 
         PaymentValidatedDTO dto = new PaymentValidatedDTO(
-                pagamento.getId(),
-                pagamento.getCorrelationId()
+                payment.getId(),
+                payment.getCorrelationId(),
+                pagamentoRequest.payer(),
+                transactions,
+                pagamentoRequest.payer().getPhone(),
+                pagamentoRequest.payer().getAddress()
         );
 
-        publisher.publish(dto);
-
+        PaymentReceiveDTO receiveDTO = publisher.publishAndReceivePayment(gson.toJson(dto));
+        log.info("Order criada com sucesso!");
         return new PaymentResponseDTO(
-                pagamento.getId(),
-                pagamento.getCorrelationId(),
-                pagamento.getStatus(),
+                receiveDTO.id(),
+                receiveDTO.orderId(),
+                payment.getStatus(),
                 "Enviado para processamento"
         );
     }
 
-    private void validar(PaymentRequestDTO pagamento){
-        if(pagamento.amount().compareTo(BigDecimal.ZERO)<=0){
+    private void validatePayment(PaymentRequestDTO request) {
+        validateCommons(request);
+
+        switch (request.payment_method().getType()) {
+            case credit_card, debit_card -> validateCard(request);
+            case bank_transfer -> validatePix(request);
+            default -> throw new IllegalArgumentException("Tipo de pagamento não suportado");
+        }
+    }
+
+    private void validateCommons(PaymentRequestDTO pagamento) {
+        if(pagamento.total_amount().compareTo(BigDecimal.ZERO)<=0){
             throw new IllegalArgumentException("valor inválido!");
         }
         //validação simulada: só permitido BRL
         if(CurrencyEnum.valueOf(pagamento.currency().toUpperCase()) != CurrencyEnum.BRL){
             throw new IllegalArgumentException("Moeda não suportada!");
         }
-        if (pagamento.externalReference().isEmpty()){
-            throw new IllegalArgumentException("Referência não listada");
-        }
         if(pagamento.callbackUrl().isEmpty()){
             throw new IllegalArgumentException("Url vazia");
         }
     }
 
+    private void validateCard(PaymentRequestDTO request) {
+        PaymentMethodDTO method =  request.payment_method();
+        if (method.getToken() == null || method.getToken().isBlank()) {
+            throw new IllegalArgumentException("Token do cartão é obrigatório");
+        }
+        if (method.getToken().length() < 32 || method.getToken().length() > 33) {
+            throw new IllegalArgumentException("Token do cartão deve possuir entre 32 e 33 caracteres");
+        }
+        if (method.getStatement_descriptor()!=null && method.getStatement_descriptor().length() > 50) {
+            throw new IllegalArgumentException("statement_descriptor deve possuir no máximo 50 caracteres");
+        }
+        //Validação específica crédito
+        if(Objects.equals(TypePayment.credit_card, method.getType())){
+            if (method.getInstallments() == null) {
+                throw new IllegalArgumentException("Número de parcelas é obrigatório para cartão de crédito");
+            }
+            if (method.getInstallments() < 1 || method.getInstallments() > 36) {
+                throw new IllegalArgumentException("O número de parcelas deve estar entre 1 e 36");
+            }
+        }
+        //Validação específica débito
+        if (Objects.equals(TypePayment.debit_card, method.getType()) && method.getInstallments() != null) {
+            throw new IllegalArgumentException("Cartão de débito não deve informar parcelas");
+        }
+    }
 
-    public PaymentReceiveDTO verificarPagamento(String transactionId){
+    private void validatePix(PaymentRequestDTO request) {
+        if (request.payer() == null) {
+            throw new IllegalArgumentException("payer é obrigatório para Pix");
+        }
+        if (!Objects.equals(request.payment_method().getType(), TypePayment.bank_transfer)) {
+            throw new IllegalArgumentException("O tipo de pagamento Pix deve ser bank_transfer");
+        }
+        Payer payer = request.payer();
+
+        if (payer.getEmail() == null || payer.getEmail().isBlank()) {
+            throw new IllegalArgumentException("Email do payer é obrigatório para Pix");
+        }
+
+        if (!payer.getEmail().matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")) {
+            throw new IllegalArgumentException("Email do payer inválido");
+        }
+        if(request.payment_method().getToken()!=null){
+            throw new IllegalArgumentException("Token não permitido para o pagamento");
+        }
+        if(request.payment_method().getInstallments()!=null){
+            throw new IllegalArgumentException("Parcela não permitida para pix");
+        }
+
+    }
+
+
+    public PaymentReceiveDTO verifyOrder(String transactionId){
         return publisher.publishAndReceive(transactionId);
+    }
+
+    public PaymentCancelResponseDTO cancelOrder(String transactionId){
+        var response = publisher.publishAndReceiveCancel(transactionId);
+        return new PaymentCancelResponseDTO(
+                response.id(),
+                response.amount(),
+                response.currency(),
+                response.externalReference(),
+                response.status(),
+                response.orderId(),
+                response.createdAt(),
+                "Order cancelada com sucesso!"
+        );
+    }
+
+    public PaymentResponseDTO refund(String transactionId){
+        PaymentReceiveDTO response = publisher.publishAndReceiveRefund(transactionId);
+        return new PaymentResponseDTO(
+                response.id(),
+                response.orderId(),
+                response.status(),
+                "Transação reembolsada com sucesso!"
+        );
     }
 }

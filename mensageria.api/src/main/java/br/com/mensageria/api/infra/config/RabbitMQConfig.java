@@ -14,6 +14,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMQConfig {
     private static final String EXCHANGE_NAME = "mensageria-payment-exchange";
+    private static final String DEAD_LETTER_EXCHANGE_NAME = "mensageria-payment-dlx";
 
     @Bean
     public Exchange paymentExchange() {
@@ -23,9 +24,17 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Exchange deadLetterExchange() {
+        return ExchangeBuilder
+                .topicExchange(DEAD_LETTER_EXCHANGE_NAME)
+                .build();
+    }
+
+    @Bean
     public MessageConverter jacksonMessageConverter() {
         return new JacksonJsonMessageConverter();
     }
+
     @Bean
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, MessageConverter converter) {
         RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
@@ -41,11 +50,7 @@ public class RabbitMQConfig {
 
         factory.setAdviceChain(RetryInterceptorBuilder.stateless()
                 .maxRetries(3)
-                .backOffOptions(
-                        1000,
-                        1.0,
-                        10000
-                )
+                .backOffOptions(1000, 1.0, 10000)
                 .recoverer(new RejectAndDontRequeueRecoverer())
                 .build()
         );
