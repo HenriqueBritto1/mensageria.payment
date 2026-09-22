@@ -13,31 +13,31 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/payment")
 public class PaymentController {
 
     @Autowired
     private PaymentService paymentService;
 
-    @PostMapping("/pagamento")
+    @PostMapping
     @Operation(summary = "Realizar pagamento", description = "Cria order de pagamento diretamente com a API do mercado pago.")
     public ResponseEntity<PaymentResponseDTO> payment(@RequestBody @Valid PaymentRequestDTO pagamento){
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(paymentService.makePayment(pagamento));
     }
 
-    @GetMapping("/pagamento/{transactionId}")
+    @GetMapping("/{transactionId}")
     @Operation(summary = "Verificar pagamento", description = "Verifica informações do pagamento e status atual")
     public ResponseEntity<PaymentReceiveDTO> verifyOrder(@PathVariable String transactionId){
         return ResponseEntity.ok(paymentService.verifyOrder(transactionId));
     }
 
-    @DeleteMapping("/pagamento/{transactionId}")
+    @DeleteMapping("/{transactionId}")
     @Operation(summary = "Cancelar pagamento", description = "Cancela ordem de pagamento")
     public ResponseEntity<PaymentCancelResponseDTO> cancelOrder(@PathVariable String transactionId){
         return ResponseEntity.ok(paymentService.cancelOrder(transactionId));
     }
 
-    @PostMapping("/pagamento/refund/{transactionId}")
+    @PostMapping("/refund/{transactionId}")
     @Operation(summary = "Reembolsar pagamento", description = "Reembolsa transação completa")
     public ResponseEntity<PaymentResponseDTO> refundTransaction(@PathVariable String transactionId){
         return ResponseEntity.ok(paymentService.refund(transactionId));
