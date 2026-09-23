@@ -261,6 +261,7 @@ public class ProcessorService {
 
             HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString());
             log.info("Refund - Response Status: " + response.statusCode());
+            //valida resposta da API
             tratar(response.statusCode());
 
             var responseDTO = gson.fromJson(response.body(), MercadoPagoRefundResponseDTO.class);
