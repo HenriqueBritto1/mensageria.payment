@@ -54,4 +54,18 @@ public class GlobalExceptionHandler {
                 new ResponseError(HttpStatus.TOO_MANY_REQUESTS.value(), e.getMessage())
         );
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ResponseError> handleIllegalArgumentException(IllegalArgumentException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                new ResponseError(HttpStatus.BAD_REQUEST.value(), e.getMessage())
+        );
+    }
+
+    @ExceptionHandler(ResourceLocked.class)
+    public ResponseEntity<ResponseError> handleResourceLocked(ResourceLocked e) {
+        return ResponseEntity.status(HttpStatus.LOCKED).body(
+                new ResponseError(HttpStatus.LOCKED.value(), e.getMessage())
+        );
+    }
 }
