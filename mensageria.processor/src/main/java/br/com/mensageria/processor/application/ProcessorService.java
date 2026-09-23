@@ -121,9 +121,6 @@ public class ProcessorService {
             log.severe("Erro ao integrar com a API: "+ e.getMessage());
             Thread.currentThread().interrupt();
             throw new RuntimeException(e.getMessage());
-        }catch (Exception exception){
-            log.severe("Erro ao integrar com a API: "+ exception.getMessage());
-            throw exception;
         }
     }
 
@@ -168,7 +165,7 @@ public class ProcessorService {
             log.severe("Erro ao integrar com a API: "+ ex.getMessage());
             Thread.currentThread().interrupt();
             throw new RuntimeException(ex.getMessage());
-        } catch (Exception exception){
+        } catch (IOException exception){
             log.severe("Erro ao integrar com a API: "+ exception.getMessage());
             throw new RuntimeException(exception.getMessage());
         }
@@ -214,7 +211,7 @@ public class ProcessorService {
             log.severe("Erro ao integrar com a API: "+ ex.getMessage());
             Thread.currentThread().interrupt();
             throw new RuntimeException(ex.getMessage());
-        } catch (Exception exception){
+        } catch (IOException exception){
             log.severe("Erro ao integrar com a API: "+ exception.getMessage());
             throw new RuntimeException(exception.getMessage());
         }
@@ -264,6 +261,7 @@ public class ProcessorService {
 
             HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString());
             log.info("Refund - Response Status: " + response.statusCode());
+            //valida resposta da API
             tratar(response.statusCode());
 
             var responseDTO = gson.fromJson(response.body(), MercadoPagoRefundResponseDTO.class);
@@ -277,7 +275,7 @@ public class ProcessorService {
             log.severe("Erro ao integrar com a API: "+ exception.getMessage());
             Thread.currentThread().interrupt();
             throw new RuntimeException(exception.getMessage());
-        } catch (Exception exception){
+        } catch (IOException exception){
             log.severe("Erro ao integrar com a API: "+ exception.getMessage());
             throw new RuntimeException(exception.getMessage());
         }

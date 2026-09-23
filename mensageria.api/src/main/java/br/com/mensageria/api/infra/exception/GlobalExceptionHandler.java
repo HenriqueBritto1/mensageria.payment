@@ -2,6 +2,7 @@ package br.com.mensageria.api.infra.exception;
 
 import br.com.mensageria.commons.exceptions.InsuficientBalanceException;
 import br.com.mensageria.commons.exceptions.PaymentError;
+import br.com.mensageria.commons.exceptions.PaymentNotFound;
 import br.com.mensageria.commons.exceptions.ResponseError;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -50,6 +51,19 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ResponseError> handleException(PaymentError e){
         return ResponseEntity.internalServerError().body(
                 new ResponseError(HttpStatus.INTERNAL_SERVER_ERROR.value(), e.getMessage())
+        );
+    }
+
+    @ExceptionHandler(PaymentNotFound.class)
+    @ApiResponse(
+            responseCode = "404",
+            description = "Pagamento não encontrado",
+            content = @Content(schema = @Schema(implementation = ResponseError.class))
+    )
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ResponseEntity<ResponseError> handleException(PaymentNotFound e){
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                new ResponseError(HttpStatus.NOT_FOUND.value(), e.getMessage())
         );
     }
 }
